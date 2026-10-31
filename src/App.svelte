@@ -4,6 +4,7 @@
   import ListEditor from './components/ListEditor.svelte';
   import Modal from './components/Modal.svelte';
   import Profiles from './components/Profiles.svelte';
+  import Results from './components/Results.svelte';
   import SessionSetup from './components/SessionSetup.svelte';
   import { animalById } from './data/animals';
   import { fmt, tr } from './lib/i18n.svelte';
@@ -31,6 +32,7 @@
   let summary: SessionSummary | null = $state(null);
   let coinsBefore = $state(0);
   let statsBefore: ListStats | null = null;
+  let lastStart: { listId: string; path: Path; setup: ListSetup; entryIds?: string[] } | null = null;
   let shared: SharedList | null = $state(null);
   let sharedError = $state(false);
 
@@ -68,6 +70,7 @@
   function start(listId: string, path: Path, setup: ListSetup, entryIds?: string[]) {
     const list = getList(listId);
     if (!list) return;
+    lastStart = { listId, path, setup, entryIds };
     profile.data.setups[listId] = setup;
     profile.data.lastListId = listId;
     statsBefore = listStats(list);
@@ -122,6 +125,16 @@
   {/if}
 {:else if screen.name === 'game' && session}
   <Game {session} {buddy} {coinsBefore} onanswer={rewardAnswer} onend={ended} />
+{:else if screen.name === 'results' && session && summary}
+  <Results
+    {session}
+    {summary}
+    {buddy}
+    onagain={() => lastStart && start(lastStart.listId, lastStart.path, lastStart.setup, lastStart.entryIds)}
+    onpractise={(ids) => lastStart && start(lastStart.listId, 'learn', setupFor(lastStart.listId), ids)}
+    onhouse={() => (screen = { name: 'house' })}
+    onhome={() => (screen = { name: 'home' })}
+  />
 {:else}
   <main class="screen"><button class="btn" onclick={() => (screen = { name: 'home' })}>{tr().toHome}</button></main>
 {/if}

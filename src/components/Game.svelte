@@ -28,6 +28,9 @@
     onend: () => void;
   } = $props();
 
+  // Lets the browser tests read the right answer (development builds only).
+  if (import.meta.env.DEV) (window as unknown as { __session: GameSession }).__session = session;
+
   const q = $derived(session.question);
   const last = $derived(session.last);
   const isLearn = $derived(session.path === 'learn');
@@ -164,8 +167,9 @@
     if (session.phase === 'done') onend();
   }
 
-  function proceed() {
-    if (canContinue && performance.now() - answeredAt > 250) next();
+  /** Continue after feedback. The Enter that submitted the answer must not also skip the feedback. */
+  function proceed(fromKey = false) {
+    if (canContinue && (!fromKey || performance.now() - answeredAt > 250)) next();
   }
 
   function quit() {
@@ -183,7 +187,7 @@
       session.dismissIntro();
     } else if (session.phase === 'feedback' && (e.key === 'Enter' || (e.key === ' ' && document.activeElement !== copyInput))) {
       e.preventDefault();
-      proceed();
+      proceed(true);
     } else if (session.phase === 'question' && q && q.mode !== 'type' && /^[1-8]$/.test(e.key)) {
       const option = q.options[Number(e.key) - 1];
       if (option) choose(option);
@@ -321,7 +325,7 @@
                 <SpellingDiff typed={last.typed} correct={last.form ?? q.answer} />
               </div>
             {/if}
-            <button class="btn block go" onclick={proceed}>{tr().next}</button>
+            <button class="btn block go" onclick={() => proceed()}>{tr().next}</button>
           </div>
         {:else}
           <div class="panel bad feedback">
@@ -346,7 +350,7 @@
                 />
               </label>
             {/if}
-            <button class="btn block go" onclick={proceed} disabled={!canContinue}>{tr().next}</button>
+            <button class="btn block go" onclick={() => proceed()} disabled={!canContinue}>{tr().next}</button>
           </div>
         {/if}
       {/if}

@@ -159,6 +159,16 @@ const nl = {
   noFoodStopped: 'Ronde gestopt: geen voer deze keer.',
   coinsEarned: 'munten',
   foodEarned: 'voer',
+  rewardLine: 'Mooi gewerkt, hier is je beloning.',
+  longestStreakLabel: 'langste reeks',
+  wordsChip: '{n} woorden',
+  wrongMark: 'fout',
+  skippedMark: 'overgeslagen',
+  gradeGreat: 'Super gedaan!',
+  gradeGood: 'Goed gedaan!',
+  gradeOk: 'Blijf oefenen, je kunt het!',
+  unicornProgress: '{grade} / 9,0, nog even doorzetten!',
+  noMistakes: 'Geen foutjes. Wauw!',
 
   // Shop
   shopTitle: 'Dierenwinkel',
@@ -387,6 +397,16 @@ const en: Dict = {
   noFoodStopped: 'Round stopped: no food this time.',
   coinsEarned: 'coins',
   foodEarned: 'food',
+  rewardLine: 'Nice work, here is your reward.',
+  longestStreakLabel: 'longest streak',
+  wordsChip: '{n} words',
+  wrongMark: 'wrong',
+  skippedMark: 'skipped',
+  gradeGreat: 'Brilliant!',
+  gradeGood: 'Well done!',
+  gradeOk: 'Keep practising, you can do it!',
+  unicornProgress: '{grade} / 9.0, keep going!',
+  noMistakes: 'No mistakes. Wow!',
 
   shopTitle: 'Animal shop',
   tabAnimals: 'Animals',
@@ -475,6 +495,11 @@ export function fmt(text: string, values: Record<string, string | number>): stri
 /** A random item, e.g. one of the praise texts. */
 export function pick<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)];
+}
+
+/** A grade with one decimal: "7,8" in Dutch, "7.8" in English. */
+export function gradeText(g: number): string {
+  return g.toLocaleString(prefs.uiLang === 'nl' ? 'nl-NL' : 'en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 /** Numbers with Dutch or English thousands separators ("1.240" / "1,240"). */

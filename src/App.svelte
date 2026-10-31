@@ -3,33 +3,36 @@
   import Home from './components/Home.svelte';
   import ListEditor from './components/ListEditor.svelte';
   import Modal from './components/Modal.svelte';
+  import Profiles from './components/Profiles.svelte';
   import SessionSetup from './components/SessionSetup.svelte';
+  import { animalById } from './data/animals';
   import { fmt, tr } from './lib/i18n.svelte';
   import { getList, saveList } from './lib/lists.svelte';
   import { prefs } from './lib/prefs.svelte';
-  import { NEW_PROGRESS, updateProgress, type ItemProgress } from './lib/scheduler';
-  import { GameSession, type Path, type ProgressStore } from './lib/session.svelte';
+  import { currentPlayer, listStats, profile, progressStore, setupFor, type ListStats } from './lib/profile.svelte';
+  import { finishSession, rewardAnswer, type SessionSummary } from './lib/rewards';
+  import { GameSession, type Path } from './lib/session.svelte';
   import { sharedListFromHash, type SharedList } from './lib/share';
-  import { DEFAULT_SETUP, type ListSetup } from './lib/types';
+  import type { ListSetup } from './lib/types';
 
   type Screen =
+    | { name: 'profiles' }
     | { name: 'home' }
     | { name: 'list'; listId: string | null }
     | { name: 'setup'; listId: string; path: Path }
-    | { name: 'game' };
+    | { name: 'game' }
+    | { name: 'results' }
+    | { name: 'shop' }
+    | { name: 'house' }
+    | { name: 'settings' };
 
-  let screen: Screen = $state({ name: 'home' });
+  let screen: Screen = $state({ name: 'profiles' });
   let session: GameSession | null = $state(null);
+  let summary: SessionSummary | null = $state(null);
+  let coinsBefore = $state(0);
+  let statsBefore: ListStats | null = null;
   let shared: SharedList | null = $state(null);
   let sharedError = $state(false);
-  let setups: Record<string, ListSetup> = $state({});
-
-  // Temporary in-memory progress (profiles come in phase 3).
-  const progressMap: Record<string, ItemProgress> = {};
-  const progress: ProgressStore = {
-    get: (k) => progressMap[k] ?? NEW_PROGRESS,
-    record: (k, o) => (progressMap[k] = updateProgress(progressMap[k] ?? NEW_PROGRESS, o)),
-  };
 
   $effect(() => {
     document.documentElement.lang = prefs.uiLang;
@@ -48,32 +51,61 @@
   readSharedList();
 
   function addShared() {
-    if (shared) saveList(shared);
+    if (shared) {
+      const list = saveList(shared);
+      profile.data.lastListId = list.id;
+    }
     shared = null;
-    screen = { name: 'home' };
   }
 
-  function start(listId: string, path: Path, setup: ListSetup) {
+  /** The buddy on the play screen: the newest animal in the house, or the player's avatar. */
+  const buddy = $derived.by(() => {
+    const owned = profile.data.owned;
+    const a = owned.length ? animalById(owned[owned.length - 1].animalId) : undefined;
+    return a?.emoji ?? currentPlayer()?.avatar ?? '🦊';
+  });
+
+  function start(listId: string, path: Path, setup: ListSetup, entryIds?: string[]) {
     const list = getList(listId);
     if (!list) return;
-    setups[listId] = setup;
+    profile.data.setups[listId] = setup;
+    profile.data.lastListId = listId;
+    statsBefore = listStats(list);
+    coinsBefore = profile.data.wallet.coins;
+    summary = null;
     session = new GameSession({
       path,
       list,
       dir: setup.dir,
       modes: path === 'learn' ? setup.modes : setup.testModes,
       length: setup.length,
-      settings: { spelling: 'lenient', articles: 'optional', hintSpeed: 'normal', copyAfterWrong: true, testFeedback: 'each' },
-      progress,
+      settings: { ...profile.data.settings },
+      progress: progressStore(),
+      entryIds,
     });
     screen = { name: 'game' };
+  }
+
+  function ended() {
+    if (!session || !statsBefore) return;
+    summary = finishSession(session, statsBefore);
+    screen = session.stopped && !session.records.length ? { name: 'home' } : { name: 'results' };
   }
 </script>
 
 <svelte:window onhashchange={readSharedList} />
 
-{#if screen.name === 'home'}
-  <Home oneditlist={(listId) => (screen = { name: 'list', listId })} onplay={(listId, path) => (screen = { name: 'setup', listId, path })} />
+{#if screen.name === 'profiles' || !currentPlayer()}
+  <Profiles onplay={() => (screen = { name: 'home' })} />
+{:else if screen.name === 'home'}
+  <Home
+    oneditlist={(listId) => (screen = { name: 'list', listId })}
+    onplay={(listId, path) => (screen = { name: 'setup', listId, path })}
+    onshop={() => (screen = { name: 'shop' })}
+    onhouse={() => (screen = { name: 'house' })}
+    onsettings={() => (screen = { name: 'settings' })}
+    onswitch={() => (screen = { name: 'profiles' })}
+  />
 {:else if screen.name === 'list'}
   <ListEditor listId={screen.listId} onclose={() => (screen = { name: 'home' })} />
 {:else if screen.name === 'setup'}
@@ -83,13 +115,15 @@
     <SessionSetup
       {list}
       path={s.path}
-      setup={setups[s.listId] ?? DEFAULT_SETUP}
+      setup={setupFor(s.listId)}
       onstart={(setup) => start(s.listId, s.path, setup)}
       onback={() => (screen = { name: 'home' })}
     />
   {/if}
 {:else if screen.name === 'game' && session}
-  <Game {session} onend={() => (screen = { name: 'home' })} />
+  <Game {session} {buddy} {coinsBefore} onanswer={rewardAnswer} onend={ended} />
+{:else}
+  <main class="screen"><button class="btn" onclick={() => (screen = { name: 'home' })}>{tr().toHome}</button></main>
 {/if}
 
 {#if shared}

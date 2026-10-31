@@ -4,12 +4,12 @@ export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 60_000,
   use: {
-    baseURL: 'http://localhost:5190',
+    baseURL: 'http://localhost:5192',
     ...devices['Desktop Chrome'],
   },
   webServer: {
-    command: 'npx vite --port 5190 --strictPort',
-    url: 'http://localhost:5190',
+    command: 'npx vite --port 5192 --strictPort',
+    url: 'http://localhost:5192',
     reuseExistingServer: true,
   },
 });

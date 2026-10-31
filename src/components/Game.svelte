@@ -29,7 +29,9 @@
   } = $props();
 
   // Lets the browser tests read the right answer (development builds only).
-  if (import.meta.env.DEV) (window as unknown as { __session: GameSession }).__session = session;
+  $effect(() => {
+    if (import.meta.env.DEV) (window as unknown as { __session: GameSession }).__session = session;
+  });
 
   const q = $derived(session.question);
   const last = $derived(session.last);

@@ -1,6 +1,8 @@
 <script lang="ts">
   import Game from './components/Game.svelte';
   import Home from './components/Home.svelte';
+  import House from './components/House.svelte';
+  import Shop from './components/Shop.svelte';
   import ListEditor from './components/ListEditor.svelte';
   import Modal from './components/Modal.svelte';
   import Profiles from './components/Profiles.svelte';
@@ -23,7 +25,7 @@
     | { name: 'setup'; listId: string; path: Path }
     | { name: 'game' }
     | { name: 'results' }
-    | { name: 'shop' }
+    | { name: 'shop'; tab?: 'animals' | 'rooms' }
     | { name: 'house' }
     | { name: 'settings' };
 
@@ -135,6 +137,10 @@
     onhouse={() => (screen = { name: 'house' })}
     onhome={() => (screen = { name: 'home' })}
   />
+{:else if screen.name === 'shop'}
+  <Shop tab={screen.tab} onback={() => (screen = { name: 'home' })} onhouse={() => (screen = { name: 'house' })} />
+{:else if screen.name === 'house'}
+  <House onback={() => (screen = { name: 'home' })} onshop={(tab) => (screen = { name: 'shop', tab })} />
 {:else}
   <main class="screen"><button class="btn" onclick={() => (screen = { name: 'home' })}>{tr().toHome}</button></main>
 {/if}

@@ -38,3 +38,15 @@ export interface WordList {
   created: number;
   updated: number;
 }
+
+/** The last session choices for a list (per player). */
+export interface ListSetup {
+  dir: DirSetting;
+  /** Learning path: chosen modes, or 'auto'. */
+  modes: Mode[] | 'auto';
+  /** Test path: chosen modes. */
+  testModes: Mode[];
+  length: 10 | 20;
+}
+
+export const DEFAULT_SETUP: ListSetup = { dir: 'ab', modes: 'auto', testModes: ['type'], length: 10 };

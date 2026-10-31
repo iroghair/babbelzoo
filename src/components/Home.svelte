@@ -5,7 +5,7 @@
   import Scenery from './Scenery.svelte';
   import SharePanel from './SharePanel.svelte';
 
-  let { oneditlist }: { oneditlist: (id: string | null) => void } = $props();
+  let { oneditlist, onplay }: { oneditlist: (id: string | null) => void; onplay: (id: string, path: 'learn' | 'test') => void } = $props();
 
   let sharing: WordList | null = $state(null);
 </script>
@@ -29,6 +29,10 @@
               <button class="icon-btn" onclick={() => (sharing = list)} aria-label={tr().share}>🔗</button>
               <button class="icon-btn" onclick={() => oneditlist(list.id)} aria-label={tr().edit}>✎</button>
             </div>
+          </div>
+          <div class="row actions">
+            <button class="btn" onclick={() => onplay(list.id, 'learn')}>{tr().tileLearn}</button>
+            <button class="btn sky" onclick={() => onplay(list.id, 'test')}>{tr().tileTest}</button>
           </div>
         </article>
       {/each}
@@ -57,6 +61,12 @@
   }
   h3 {
     font-size: 21px;
+  }
+  .actions {
+    margin-top: 14px;
+  }
+  .actions .btn {
+    flex: 1;
   }
   .new-list {
     min-height: 120px;

@@ -163,8 +163,11 @@ export function matchAnswer(answer: string, accepted: string[], opts: MatchOptio
 
 export interface DiffPart {
   text: string;
-  /** 'ok' = same letter, 'wrong' = typed but should be different or absent, 'missing' = should have been typed. */
-  kind: 'ok' | 'wrong' | 'missing';
+  /**
+   * 'ok' = same letter, 'wrong' = typed but should be different or absent, 'missing' = should
+   * have been typed, 'swap' = two neighbouring letters typed the wrong way round (shown correctly).
+   */
+  kind: 'ok' | 'wrong' | 'missing' | 'swap';
 }
 
 /**
@@ -175,11 +178,14 @@ export function spellingDiff(typed: string, correct: string): DiffPart[] {
   const fold = (c: string) => normalize(c) || c.toLowerCase();
   const a = [...typed.trim()];
   const b = [...correct];
+  const swapped = (i: number, j: number) =>
+    i > 1 && j > 1 && fold(a[i - 1]) === fold(b[j - 2]) && fold(a[i - 2]) === fold(b[j - 1]) && fold(a[i - 1]) !== fold(a[i - 2]);
   const d: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
   for (let j = 1; j <= b.length; j++) d[0][j] = j;
   for (let i = 1; i <= a.length; i++) {
     for (let j = 1; j <= b.length; j++) {
       d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (fold(a[i - 1]) === fold(b[j - 1]) ? 0 : 1));
+      if (swapped(i, j)) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
     }
   }
   const parts: DiffPart[] = [];
@@ -191,7 +197,11 @@ export function spellingDiff(typed: string, correct: string): DiffPart[] {
   let i = a.length;
   let j = b.length;
   while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && d[i][j] === d[i - 1][j - 1] + (fold(a[i - 1]) === fold(b[j - 1]) ? 0 : 1)) {
+    if (swapped(i, j) && d[i][j] === d[i - 2][j - 2] + 1) {
+      push(b[j - 2] + b[j - 1], 'swap');
+      i -= 2;
+      j -= 2;
+    } else if (i > 0 && j > 0 && d[i][j] === d[i - 1][j - 1] + (fold(a[i - 1]) === fold(b[j - 1]) ? 0 : 1)) {
       if (fold(a[i - 1]) === fold(b[j - 1])) push(b[j - 1], 'ok');
       else {
         push(b[j - 1], 'missing');

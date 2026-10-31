@@ -1,24 +1,40 @@
 <script lang="ts">
+  import Game from './components/Game.svelte';
   import Home from './components/Home.svelte';
   import ListEditor from './components/ListEditor.svelte';
   import Modal from './components/Modal.svelte';
+  import SessionSetup from './components/SessionSetup.svelte';
   import { fmt, tr } from './lib/i18n.svelte';
-  import { saveList } from './lib/lists.svelte';
+  import { getList, saveList } from './lib/lists.svelte';
   import { prefs } from './lib/prefs.svelte';
+  import { NEW_PROGRESS, updateProgress, type ItemProgress } from './lib/scheduler';
+  import { GameSession, type Path, type ProgressStore } from './lib/session.svelte';
   import { sharedListFromHash, type SharedList } from './lib/share';
+  import { DEFAULT_SETUP, type ListSetup } from './lib/types';
 
-  type Screen = { name: 'home' } | { name: 'list'; listId: string | null };
+  type Screen =
+    | { name: 'home' }
+    | { name: 'list'; listId: string | null }
+    | { name: 'setup'; listId: string; path: Path }
+    | { name: 'game' };
 
   let screen: Screen = $state({ name: 'home' });
+  let session: GameSession | null = $state(null);
   let shared: SharedList | null = $state(null);
   let sharedError = $state(false);
+  let setups: Record<string, ListSetup> = $state({});
+
+  // Temporary in-memory progress (profiles come in phase 3).
+  const progressMap: Record<string, ItemProgress> = {};
+  const progress: ProgressStore = {
+    get: (k) => progressMap[k] ?? NEW_PROGRESS,
+    record: (k, o) => (progressMap[k] = updateProgress(progressMap[k] ?? NEW_PROGRESS, o)),
+  };
 
   $effect(() => {
     document.documentElement.lang = prefs.uiLang;
   });
 
-  // Opening a shared link (#list=…) offers to add the list. The link may also be pasted
-  // into a tab where the game is already open, which only changes the hash.
   function readSharedList() {
     if (!location.hash.startsWith('#list=')) return;
     sharedListFromHash(location.hash)
@@ -36,14 +52,44 @@
     shared = null;
     screen = { name: 'home' };
   }
+
+  function start(listId: string, path: Path, setup: ListSetup) {
+    const list = getList(listId);
+    if (!list) return;
+    setups[listId] = setup;
+    session = new GameSession({
+      path,
+      list,
+      dir: setup.dir,
+      modes: path === 'learn' ? setup.modes : setup.testModes,
+      length: setup.length,
+      settings: { spelling: 'lenient', articles: 'optional', hintSpeed: 'normal', copyAfterWrong: true, testFeedback: 'each' },
+      progress,
+    });
+    screen = { name: 'game' };
+  }
 </script>
 
 <svelte:window onhashchange={readSharedList} />
 
 {#if screen.name === 'home'}
-  <Home oneditlist={(listId) => (screen = { name: 'list', listId })} />
+  <Home oneditlist={(listId) => (screen = { name: 'list', listId })} onplay={(listId, path) => (screen = { name: 'setup', listId, path })} />
 {:else if screen.name === 'list'}
   <ListEditor listId={screen.listId} onclose={() => (screen = { name: 'home' })} />
+{:else if screen.name === 'setup'}
+  {@const s = screen}
+  {@const list = getList(s.listId)}
+  {#if list}
+    <SessionSetup
+      {list}
+      path={s.path}
+      setup={setups[s.listId] ?? DEFAULT_SETUP}
+      onstart={(setup) => start(s.listId, s.path, setup)}
+      onback={() => (screen = { name: 'home' })}
+    />
+  {/if}
+{:else if screen.name === 'game' && session}
+  <Game {session} onend={() => (screen = { name: 'home' })} />
 {/if}
 
 {#if shared}

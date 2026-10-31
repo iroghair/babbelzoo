@@ -92,6 +92,11 @@ describe('spellingDiff', () => {
     const parts = spellingDiff('hius', 'huis');
     expect(parts.map((p) => p.text).join('')).toContain('h');
     expect(parts.some((p) => p.kind !== 'ok')).toBe(true);
+    expect(spellingDiff('hius', 'huis')).toEqual([
+      { text: 'h', kind: 'ok' },
+      { text: 'ui', kind: 'swap' },
+      { text: 's', kind: 'ok' },
+    ]);
     expect(spellingDiff('huis', 'huis')).toEqual([{ text: 'huis', kind: 'ok' }]);
     expect(spellingDiff('hus', 'huis')).toEqual([
       { text: 'hu', kind: 'ok' },

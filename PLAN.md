@@ -1,7 +1,8 @@
 # Babbelzoo: Game Rules & Development Plan
 
-**Status:** decisions answered 2026-10-31; ready for the design pass. This plan covers
-functionality; the look and feel will be designed separately (section 8 lists the screens).
+**Status:** decisions answered 2026-10-31; design done in Superdesign; phases 0–6 built
+2026-10-31 (see [section 12](#12-implementation-status)). The look follows the approved drafts
+in `.superdesign/`.
 
 **Timing:** the first real use is a school test of about 30 words in the week of 2026-11-02.
 Phases 0–5 (section 11) are the version to have ready for that.
@@ -490,3 +491,55 @@ the week of 2026-11-02; the design pass can run alongside.
 
 After phases 0–3 there is a first playable version with coins. The kids can try it early, and the
 modes and coin values can be tuned from how they play.
+
+---
+
+## 12. Implementation status
+
+*Last updated 2026-10-31.*
+
+| # | Phase | Status |
+|---|---|---|
+| 0 | Foundation | ✅ Vite + Svelte 5 + TypeScript, matcher and scheduler with tests, starter list. |
+| 1 | Lists | ✅ Paste parser (separator per line, numbering/bullets, language header line, alternatives, hints, optional parts), preview with warnings, editor, txt/csv import and export, share link + QR. |
+| 2 | Core game | ✅ Type / choose 4 / choose 8 (mixable), directions, intro cards, feedback, spelling diff, typo guard, skips, timed hints, copy step, session setup. |
+| 3 | Profiles & coins | ✅ Profiles; per-player wallet, food, progress, settings; coin drop; streak and daily bonus. |
+| 4 | Learning & test path | ✅ Soft Leitner weights, "not forgotten", batches of 5, automatic mode; test with grade, mistakes, "practise these words", readiness hint; results screens. |
+| 5 | Shop, house & food | ✅ 24 animals, rooms (pond for water animals), locked animals, naming, drag to place, drag food to feed, happy/asleep, growing up. |
+| 6 | House extras & release | ✅ Settings screen, Dutch/English menus, backup/restore, offline/PWA with icons, GitHub Pages workflow. Not yet published (needs a GitHub repository). |
+| 7 | Later | Short-code backend, letter tiles, match pairs, pronunciation. |
+
+**Checks:** unit tests for parsing, matching, scheduling, questions, coins, hints, sessions,
+rewards, the house and backups; browser tests for pasting and sharing a list, a full learning
+round, a full test with "practise these words", and buying/naming/feeding an animal.
+
+### Deviations from the plan
+
+- **Phases 5 and 6 merged for the house:** extra rooms, dragging, growing up and locked animals
+  were built together with the shop, because the designs show them on the same screens.
+- **Spelling diff:** two swapped letters are shown as one highlighted pair in the right order,
+  instead of a wrong and a missing letter.
+- **Choose 4 / 8 copy step:** after a wrong multiple-choice answer the copy step also asks to
+  type the answer, as the plan says for all wrong answers on the learning path.
+- **Hinted answers** keep their streak but don't add to it; a new word answered after hints goes
+  to box 1 (so it no longer counts as new).
+- **Typo guard** also covers other entries' alternatives; answers of entries with the same
+  question word all count as right (and are never wrong options).
+- **Settings per player** (spelling, articles, hints, copy step, test feedback); menu language
+  and sound per device.
+- **Profiles screen** always opens first, so siblings pick themselves each time.
+- **Fonts are bundled** (Fredoka and Nunito via Fontsource) so the game also looks right offline.
+
+### Known limitations
+
+- Offline: the app is cached on the second load after installing (the service worker starts
+  caching once it controls the page).
+- Animals are emoji; the phoenix uses a recent emoji (🐦‍🔥) that older tablets may show as two
+  symbols.
+- Placing animals by dragging uses % positions; on very narrow phones tokens can overlap.
+
+### Next steps
+
+1. Play-test with the kids before the test; tune hint timing and coin values (3.4, 3.6).
+2. Publish on GitHub Pages (needs a GitHub repository).
+3. Replace the emoji animals with illustrations (design pass).

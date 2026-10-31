@@ -2,6 +2,7 @@
   import Game from './components/Game.svelte';
   import Home from './components/Home.svelte';
   import House from './components/House.svelte';
+  import Settings from './components/Settings.svelte';
   import Shop from './components/Shop.svelte';
   import ListEditor from './components/ListEditor.svelte';
   import Modal from './components/Modal.svelte';
@@ -139,6 +140,8 @@
   />
 {:else if screen.name === 'shop'}
   <Shop tab={screen.tab} onback={() => (screen = { name: 'home' })} onhouse={() => (screen = { name: 'house' })} />
+{:else if screen.name === 'settings'}
+  <Settings onback={() => (screen = { name: 'home' })} onplayers={() => (screen = { name: 'profiles' })} />
 {:else if screen.name === 'house'}
   <House onback={() => (screen = { name: 'home' })} onshop={(tab) => (screen = { name: 'shop', tab })} />
 {:else}

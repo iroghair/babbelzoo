@@ -1,6 +1,7 @@
 <!-- The question screen: type / choose 4 / choose 8, timed hints, feedback with the coin drop. -->
 <script lang="ts">
   import { tick, untrack } from 'svelte';
+  import { fitText, longestWord } from '../lib/fit';
   import { coinDrop } from '../lib/fx';
   import { hintTarget, hintTimes, letterCount, maskAnswer } from '../lib/hints';
   import { fmt, langName, pick, tr } from '../lib/i18n.svelte';
@@ -259,16 +260,16 @@
         {#if session.phase === 'intro'}
           <div class="center">
             <span class="chip sky">✨ {tr().introTitle}</span>
-            <p class="word display">{q.prompt}</p>
+            <p class="word display" use:fitText={{ min: 22, key: q.prompt }}>{q.prompt}</p>
             {#if q.hint}<p class="hint-text">({q.hint})</p>{/if}
             <p class="intro-arrow" aria-hidden="true">↓</p>
-            <p class="word display answer-word">{q.accepted.join(' / ')}</p>
+            <p class="word display answer-word" use:fitText={{ min: 22, key: q.accepted.join(' / ') }}>{q.accepted.join(' / ')}</p>
             <button class="btn big block" onclick={() => session.dismissIntro()}>{tr().introGo}</button>
           </div>
         {:else}
           <div class="center">
             <span class="chip sky">{dirLabel}</span>
-            <h1 class="word">{q.prompt}</h1>
+            <h1 class="word" use:fitText={{ min: 22, key: q.prompt }}>{q.prompt}</h1>
             {#if q.hint}<p class="hint-text">({q.hint})</p>{/if}
           </div>
 
@@ -290,10 +291,15 @@
               <button class="btn big" onclick={submitTyped} disabled={session.phase !== 'question' || !typed.trim()}>{tr().check}</button>
             </div>
           {:else}
-            <div class="tiles" class:eight={q.mode === 'choose8'}>
+            <div
+              class="tiles"
+              class:eight={q.mode === 'choose8'}
+              class:four-cols={q.mode === 'choose8' && longestWord(q.options) <= 9}
+              use:fitText={{ min: 13, shared: 16, items: '.label', key: q.mode + q.options.join('|') }}
+            >
               {#each q.options as option, i (option)}
                 <button class="tile {tileClass(option)}" onclick={() => choose(option)} disabled={session.phase !== 'question' || faded.includes(option)}>
-                  <span class="key" aria-hidden="true">{i + 1}</span>{option}
+                  <span class="key" aria-hidden="true">{i + 1}</span><span class="label">{option}</span>
                 </button>
               {/each}
             </div>
@@ -437,7 +443,7 @@
     font-weight: 600;
     font-size: clamp(38px, 7vw, 60px);
     line-height: 1.1;
-    overflow-wrap: anywhere;
+    max-width: 100%;
   }
   .hint-text {
     margin: 0;
@@ -468,19 +474,24 @@
   }
   .tiles {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
     margin-top: 22px;
   }
   .tiles .tile {
     position: relative;
+    min-width: 0;
     min-height: 86px;
-    padding: 10px 14px;
+    padding: 10px 12px;
     font-size: 25px;
-    overflow-wrap: anywhere;
   }
-  .tiles.eight {
-    grid-template-columns: repeat(4, 1fr);
+  .label {
+    display: block;
+    max-width: 100%;
+    line-height: 1.15;
+  }
+  .tiles.four-cols {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .tiles.eight .tile {
     min-height: 76px;
@@ -572,8 +583,8 @@
     .type-row {
       flex-direction: column;
     }
-    .tiles.eight {
-      grid-template-columns: 1fr 1fr;
+    .tiles.four-cols {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .tiles .tile {
       min-height: 64px;

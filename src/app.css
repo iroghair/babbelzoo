@@ -610,3 +610,9 @@ label.field {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* Last resort of the fitText action: a word longer than the box even at the minimum size. */
+.fit-break {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}

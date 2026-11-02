@@ -43,23 +43,64 @@ export function canBuy(data: ProfileData, a: Animal): BuyCheck {
   return { ok: true, room };
 }
 
-/** Spots spread over the room (in %), used first-free with a little jitter. */
+/** Spots spread over a land room (in %), used first-free with a little jitter. */
 const SPOTS = [
-  [22, 42],
-  [50, 38],
-  [78, 44],
-  [32, 72],
-  [62, 70],
-  [86, 74],
-  [12, 70],
-  [68, 30],
+  [22, 40],
+  [50, 34],
+  [78, 40],
+  [32, 66],
+  [62, 64],
+  [86, 68],
+  [12, 64],
+  [68, 26],
 ];
 
+/**
+ * The pond's water in % of the scene: an ellipse around (cx, cy). House.svelte draws
+ * the blue water from these numbers, so animals and drawing always line up.
+ */
+export const POND = { cx: 50, cy: 58, rx: 39, ry: 33 };
+
+/** Spots inside the water. */
+const POND_SPOTS = [
+  [34, 52],
+  [50, 44],
+  [66, 52],
+  [38, 68],
+  [62, 68],
+  [50, 58],
+];
+
+/** How far (in % of the scene) an animal's centre stays from the edge: half a token. */
+export interface Margin {
+  x: number;
+  y: number;
+}
+const DEFAULT_MARGIN: Margin = { x: 5, y: 9 };
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/**
+ * Keeps an animal's position (its centre, in %) inside its room: anywhere on the floor
+ * of a land room, and inside the water in the pond: fish and whales cannot live on land.
+ */
+export function placeIn(room: RoomId, x: number, y: number, margin: Margin = DEFAULT_MARGIN): { x: number; y: number } {
+  if (!roomById(room).water) return { x: clamp(x, 8, 92), y: clamp(y, 14, 78) };
+  const rx = Math.max(1, POND.rx - margin.x);
+  const ry = Math.max(1, POND.ry - margin.y);
+  const dx = (x - POND.cx) / rx;
+  const dy = (y - POND.cy) / ry;
+  const d = Math.hypot(dx, dy);
+  if (d <= 1) return { x, y };
+  return { x: POND.cx + (dx / d) * rx, y: POND.cy + (dy / d) * ry };
+}
+
 export function freeSpot(data: ProfileData, room: RoomId, rng = Math.random): { x: number; y: number } {
+  const spots = roomById(room).water ? POND_SPOTS : SPOTS;
   const taken = animalsIn(data, room);
   const far = (x: number, y: number) => taken.every((o) => Math.hypot(o.x - x, o.y - y) > 12);
-  const spot = SPOTS.find(([x, y]) => far(x, y)) ?? SPOTS[Math.floor(rng() * SPOTS.length)];
-  return { x: spot[0] + (rng() * 6 - 3), y: spot[1] + (rng() * 6 - 3) };
+  const spot = spots.find(([x, y]) => far(x, y)) ?? spots[Math.floor(rng() * spots.length)];
+  return placeIn(room, spot[0] + (rng() * 6 - 3), spot[1] + (rng() * 6 - 3));
 }
 
 export function buyAnimal(data: ProfileData, a: Animal, name = ''): Owned | null {
@@ -107,7 +148,7 @@ export function feed(data: ProfileData, ownedId: string, today = dayKey()): Feed
   return o.fedDays.length === GROW_DAYS ? 'grown' : 'fed';
 }
 
-export function moveAnimal(data: ProfileData, ownedId: string, room: RoomId, x?: number, y?: number): boolean {
+export function moveAnimal(data: ProfileData, ownedId: string, room: RoomId, x?: number, y?: number, margin?: Margin): boolean {
   const o = data.owned.find((v) => v.id === ownedId);
   const a = o && animalById(o.animalId);
   if (!o || !a || !fitsIn(a, room) || !data.rooms.includes(room)) return false;
@@ -119,8 +160,9 @@ export function moveAnimal(data: ProfileData, ownedId: string, room: RoomId, x?:
     o.y = spot.y;
   }
   if (x !== undefined && y !== undefined) {
-    o.x = Math.min(92, Math.max(8, x));
-    o.y = Math.min(86, Math.max(18, y));
+    const p = placeIn(room, x, y, margin);
+    o.x = p.x;
+    o.y = p.y;
   }
   return true;
 }

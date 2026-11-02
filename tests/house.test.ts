@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { animalById } from '../src/data/animals';
-import { buyAnimal, buyRoom, canBuy, feed, freeSlots, isAdult, isUnlocked, moveAnimal } from '../src/lib/house';
+import { buyAnimal, buyRoom, canBuy, feed, freeSlots, isAdult, isUnlocked, moveAnimal, placeIn, POND } from '../src/lib/house';
 import type { ProfileData } from '../src/lib/profile.svelte';
 import { DEFAULT_SETTINGS } from '../src/lib/profile.svelte';
 
@@ -77,12 +77,35 @@ describe('moving', () => {
     const d = data();
     const o = buyAnimal(d, A('dog'))!;
     expect(moveAnimal(d, o.id, 'living', 150, -5)).toBe(true);
-    expect([o.x, o.y]).toEqual([92, 18]);
+    expect([o.x, o.y]).toEqual([92, 14]);
     expect(moveAnimal(d, o.id, 'garden')).toBe(false);
     buyRoom(d, 'garden');
     buyRoom(d, 'pond');
     expect(moveAnimal(d, o.id, 'pond')).toBe(false);
     expect(moveAnimal(d, o.id, 'garden')).toBe(true);
     expect(o.roomId).toBe('garden');
+  });
+});
+
+describe('the pond', () => {
+  const inWater = (p: { x: number; y: number }) => ((p.x - POND.cx) / POND.rx) ** 2 + ((p.y - POND.cy) / POND.ry) ** 2 <= 1;
+
+  it('keeps water animals in the water, also when dropped on the bank', () => {
+    const d = data();
+    d.wallet.coins = 10_000;
+    buyRoom(d, 'pond');
+    const fish = [1, 2, 3, 4, 5, 6].map(() => buyAnimal(d, A('fish'))!);
+    for (const f of fish) expect(inWater(f)).toBe(true);
+    for (const [x, y] of [[2, 2], [98, 50], [50, 20], [10, 95], [50, 58]]) {
+      moveAnimal(d, fish[0].id, 'pond', x, y);
+      expect(inWater(fish[0])).toBe(true);
+    }
+  });
+
+  it('pulls a spot on the bank to the nearest edge of the water', () => {
+    const p = placeIn('pond', 50, 2, { x: 0, y: 0 });
+    expect(p.x).toBeCloseTo(50);
+    expect(p.y).toBeCloseTo(POND.cy - POND.ry);
+    expect(placeIn('pond', 52, 60)).toEqual({ x: 52, y: 60 });
   });
 });

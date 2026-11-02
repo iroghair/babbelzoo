@@ -3,7 +3,7 @@
   import { animalById, ROOMS, TIER_BG } from '../data/animals';
   import { dayKey } from '../lib/coins';
   import { celebrate } from '../lib/fx';
-  import { animalsIn, feed, fitsIn, freeSlots, GROW_DAYS, isAdult, isFedToday, moveAnimal } from '../lib/house';
+  import { animalsIn, feed, fitsIn, freeSlots, GROW_DAYS, isAdult, isFedToday, moveAnimal, placeIn, POND, type Margin } from '../lib/house';
   import { fmt, num, tr } from '../lib/i18n.svelte';
   import { prefs } from '../lib/prefs.svelte';
   import { profile, type Owned, type RoomId } from '../lib/profile.svelte';
@@ -18,6 +18,9 @@
   const today = dayKey();
   let room: RoomId = $state(profile.data.owned[0]?.roomId ?? 'living');
   let scene: HTMLDivElement | undefined = $state();
+  let sceneW = $state(0);
+  let sceneH = $state(0);
+  let innerWidth = $state(1024);
   let info: Owned | null = $state(null);
   let toast = $state('');
   let bursts: Record<string, number> = $state({});
@@ -27,6 +30,11 @@
   let drag: { kind: 'animal' | 'food'; id?: string; x0: number; y0: number; moved: boolean; px: number; py: number } | null = $state(null);
 
   const here = $derived(animalsIn(data, room));
+  /** Half a pet token (80px, 62px on phones) in % of the scene, so a fish stays fully in the water. */
+  const margin: Margin = $derived.by(() => {
+    const half = (innerWidth <= 640 ? 62 : 80) / 2;
+    return sceneW && sceneH ? { x: (100 * half) / sceneW, y: (100 * half) / sceneH } : { x: 5, y: 9 };
+  });
   const free = $derived(freeSlots(data, room));
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -78,8 +86,9 @@
     drag.moved = true;
     if (drag.kind === 'animal' && scene) {
       const p = scenePos(e);
-      drag.px = Math.min(92, Math.max(8, p.x));
-      drag.py = Math.min(86, Math.max(18, p.y));
+      const q = placeIn(room, p.x, p.y, margin);
+      drag.px = q.x;
+      drag.py = q.y;
     } else {
       drag.px = e.clientX;
       drag.py = e.clientY;
@@ -93,7 +102,7 @@
     if (d.kind === 'animal') {
       const o = data.owned.find((x) => x.id === d.id);
       if (!o) return;
-      if (d.moved) moveAnimal(data, o.id, o.roomId, d.px, d.py);
+      if (d.moved) moveAnimal(data, o.id, o.roomId, d.px, d.py, margin);
       else {
         hop(o.id);
         playPop();
@@ -108,7 +117,9 @@
   }
 
   function pos(o: Owned): { x: number; y: number } {
-    return drag?.kind === 'animal' && drag.id === o.id && drag.moved ? { x: drag.px, y: drag.py } : { x: o.x, y: o.y };
+    if (drag?.kind === 'animal' && drag.id === o.id && drag.moved) return { x: drag.px, y: drag.py };
+    // Also corrects animals saved before the pond kept them in the water.
+    return placeIn(o.roomId, o.x, o.y, margin);
   }
 
   function moveTo(o: Owned, r: RoomId) {
@@ -119,7 +130,7 @@
   }
 </script>
 
-<svelte:window onpointermove={onMove} onpointerup={onUp} onpointercancel={() => (drag = null)} />
+<svelte:window bind:innerWidth onpointermove={onMove} onpointerup={onUp} onpointercancel={() => (drag = null)} />
 
 <main class="screen">
   <Scenery />
@@ -150,7 +161,7 @@
       {/each}
     </div>
 
-    <div class="card scene {room}" bind:this={scene}>
+    <div class="card scene {room}" bind:this={scene} bind:clientWidth={sceneW} bind:clientHeight={sceneH}>
       {#if room === 'living'}
         <div class="window"><span>☀️</span></div>
         <span class="deco plant">🪴</span>
@@ -160,7 +171,7 @@
         <span class="deco tree">🌳</span>
         <span class="deco flowers">🌷🌼🌷</span>
       {:else if room === 'pond'}
-        <div class="water"></div>
+        <div class="water" style:left="{POND.cx}%" style:top="{POND.cy}%" style:width="{2 * POND.rx}%" style:height="{2 * POND.ry}%"></div>
         <span class="deco reeds">🌾</span>
         <span class="deco lily">🪷</span>
       {:else}
@@ -324,6 +335,7 @@
     height: 12px;
   }
   .scene {
+    --tok: 80px;
     position: relative;
     height: min(470px, calc(100dvh - 230px));
     min-height: 360px;
@@ -398,11 +410,8 @@
     font-size: 30px;
   }
   .water {
+    /* position and size come from POND in lib/house.ts */
     position: absolute;
-    left: 50%;
-    top: 58%;
-    width: 78%;
-    height: 66%;
     transform: translate(-50%, -50%);
     border-radius: 50%;
     background: radial-gradient(ellipse at 40% 35%, #c4ecfa, #8fd2ef 70%);
@@ -469,8 +478,9 @@
     pointer-events: auto;
   }
   .pet {
+    /* the saved position is the centre of the round token; name tags hang below it */
     position: absolute;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, calc(var(--tok) / -2));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -480,8 +490,8 @@
     z-index: 10;
   }
   .pet-token {
-    width: 80px;
-    height: 80px;
+    width: var(--tok);
+    height: var(--tok);
     font-size: 42px;
     border: none;
     padding: 0;
@@ -709,9 +719,10 @@
     font-weight: 800;
   }
   @media (max-width: 640px) {
+    .scene {
+      --tok: 62px;
+    }
     .pet-token {
-      width: 62px;
-      height: 62px;
       font-size: 32px;
     }
     .bowl {

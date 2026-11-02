@@ -16,7 +16,7 @@ export const NEW_PROGRESS: ItemProgress = { box: 0, attempts: 0, correct: 0, las
 /** Draw weight per box (index = box): words that need practice most, mastered ones still regularly. */
 export const BOX_WEIGHTS = [4, 5, 4, 3, 2, 1];
 
-/** From this box on a word counts as mastered ("gekend"). */
+/** From this box on a word counts as mastered ("geleerd"). */
 export const MASTERED_BOX = 4;
 
 /** At most this many words in box 1 before new words are let in. */
